@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M365 Plan Finder</title>
+    
+    <style>
+        :root {
+            --primary-green: #97C93F;
+            --primary-hover: #86b438;
+            --amber-alt: #ffc107;
+            --dark-green: #243A24;     
+            --bg-color: #ffffff;       
+            --white: #ffffff;
+            --border-color: #e9ecef;
+            --text-main: #343a40;
+            --text-muted: #6c757d;
+            --subtle-red: #fff5f5;
+            --border-red: #f5c6cb;
+            --text-red: #d9534f;
+            --shadow-soft: 0 10px 40px -10px rgba(0,0,0,0.08);
+            --shadow-hover: 0 20px 50px -10px rgba(151, 201, 63, 0.25);
+        }
+
+        * { box-sizing: border-box; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #dbdbdb; border-radius: 10px; }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color); 
+            color: var(--text-main); 
+            font-size: 14px;
+            display: flex; 
+            flex-direction: column;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden; 
+        }
+
+        /* MAIN APP CONTAINER */
+        .finder-container {
+            display: none; 
+            flex-direction: column; 
+            width: 100%;
+            height: 100%; 
+            background: var(--white); 
+            overflow: hidden;
+        }
+        
+        .app-header { border-bottom: 1px solid var(--border-color); padding: 12px 20px; background: #fff; flex-shrink: 0; }
+        .header-controls { display: flex; gap: 12px; align-items: center; width: 100%; }
+        
+        .app-body { display: flex; flex: 1; overflow: hidden; background: #fff; }
+        .selector-panel { width: 50%; display: flex; flex-direction: column; border-right: 1px solid var(--border-color); }
+        .results-panel { width: 50%; background: #fbfdf7; display: flex; flex-direction: column; }
+
+        .search-area { padding: 15px 20px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; background: #fff; }
+        .search-row { display: flex; gap: 12px; align-items: center; width: 100%; }
+        
+        .search-box { position: relative; flex: 1; display: flex; align-items: center; }
+        .search-input { 
+            width: 100%; padding: 10px 35px 10px 12px; 
+            border: 2px solid #ced4da; border-radius: 8px; 
+            outline: none; font-size: 14px;
+        }
+        .search-input::placeholder { font-style: italic; color: #adb5bd; }
+        .search-input:focus { border-color: var(--primary-green); }
+        .search-clear {
+            position: absolute; right: 10px; width: 20px; height: 20px;
+            background: #eee; border-radius: 50%; display: none;
+            align-items: center; justify-content: center;
+            font-size: 14px; color: #888; cursor: pointer; line-height: 1;
+        }
+
+        .view-selected-toggle { 
+            display: flex; align-items: center; gap: 8px; 
+            font-size: 13px; font-weight: 600; color: var(--text-main); 
+            cursor: pointer; padding: 8px 12px; border: 2px solid #eee;
+            border-radius: 8px; transition: 0.2s; background: #fdfdfd;
+            user-select: none; white-space: nowrap; margin-left: auto;
+        }
+
+        .reset-btn { 
+            padding: 10px 18px; background: #fff; border: 2px solid var(--border-red); 
+            border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 13px; 
+            color: var(--text-red); transition: all 0.2s;
+        }
+
+        .features-list { overflow-y: auto; flex: 1; scroll-behavior: smooth; padding-bottom: 60px; }
+        .results-scroll { padding: 20px 20px 60px 20px; overflow-y: auto; flex: 1; scroll-behavior: smooth; }
+
+        .category-header { 
+            background: #ffffff; padding: 15px 20px 8px 20px; font-size: 11px; 
+            font-weight: 800; color: #adb5bd; text-transform: uppercase; 
+            letter-spacing: 1px; position: sticky; top: 0; z-index: 10; 
+            border-bottom: 1px solid #f8f9fa;
+        }
+
+        .toggle-row { display: flex; align-items: center; padding: 12px 20px; cursor: pointer; border-bottom: 1px solid #f8f9fa; position: relative; }
+        .toggle-row:hover { background: #fcfdfa; }
+        .toggle-row.selected-manual { background: #f4f9eb; }
+        .toggle-row.selected-carried { background: #fbfdf7; }
+
+        .switch { 
+            width: 34px; height: 20px; background: #dee2e6; 
+            border-radius: 20px; position: relative; margin-right: 15px; flex-shrink: 0; 
+        }
+        .switch::after { 
+            content: ''; position: absolute; top: 3px; left: 3px; 
+            width: 14px; height: 14px; background: #fff; 
+            border-radius: 50%; transition: 0.2s;
+        }
+        .selected-manual .switch { background: var(--primary-green); }
+        .selected-carried .switch { background: var(--primary-hover); opacity: 0.5; }
+        .selected-manual .switch::after, .selected-carried .switch::after { transform: translateX(14px); }
+
+        .toggle-text { font-size: 13.5px; flex: 1; display: flex; align-items: center; justify-content: space-between; }
+        
+        .hint-icon { 
+            width: 18px; height: 18px; background: #eee; color: #999; border-radius: 4px; 
+            display: flex; align-items: center; justify-content: center;
+            font-style: normal; font-weight: 800; font-size: 9px;
+            margin-left: 20px; transition: 0.2s;
+        }
+        .hint-icon:hover { background: var(--primary-green); color: white; }
+
+        .best-match-card { background: #fff; border: 3px solid var(--primary-green); border-radius: 12px; padding: 25px; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(151, 201, 63, 0.1); }
+        .plan-tag { background: var(--primary-green); color: #fff; font-size: 11px; font-weight: 800; padding: 5px 12px; border-radius: 5px; margin-bottom: 10px; display: inline-block; text-transform: uppercase; }
+        .plan-name { font-size: 22px; font-weight: 600; color: var(--dark-green); line-height: 1.3; }
+        
+        .nav-controls { display: flex; gap: 10px; margin-top: 15px; align-items: center; }
+        .nav-info { font-size: 12px; color: var(--text-muted); font-weight: 600; margin-right: auto; }
+        .nav-btn { padding: 8px 16px; border-radius: 6px; font-weight: 700; font-size: 12px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
+        .nav-btn.next { background: var(--dark-green); color: white; border: 1px solid var(--dark-green); }
+        .nav-btn.prev { background: white; color: var(--text-muted); border: 1px solid #ced4da; }
+        .nav-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .plan-details-header { font-weight: 800; font-size: 14px; color: var(--text-muted); margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+        .feat-display-grid { display: flex; flex-direction: column; gap: 20px; }
+        .feat-display-cat { font-weight: 800; color: var(--primary-green); text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .feat-display-item { font-size: 13.5px; margin-bottom: 5px; color: var(--text-main); display: block; line-height: 1.4; }
+
+        /* PROFESSIONAL WIZARD REDESIGN */
+        .wizard-overlay { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            display: flex; align-items: center; justify-content: center; 
+            background: #fafbfc; z-index: 5000;
+        }
+        
+        .wizard-card { 
+            width: 90%; max-width: 900px;
+            background: #ffffff; 
+            padding: 50px 60px; 
+            display: flex; flex-direction: column; align-items: center;
+            border-radius: 24px;
+            box-shadow: var(--shadow-soft);
+            animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .wizard-header { text-align: center; margin-bottom: 30px; }
+        .wizard-header h2 { 
+            margin: 0; font-size: 32px; color: var(--dark-green); font-weight: 700; letter-spacing: -0.5px;
+        }
+        
+        .wizard-step { display: none; width: 100%; }
+        .wizard-step.active { display: flex; flex-direction: column; align-items: center; }
+
+        /* Grid for Sector Selection */
+        .sector-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 25px;
+            width: 100%;
+        }
+
+        /* Large Selection Card Style */
+        .wizard-option-card { 
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 40px 20px;
+            background: #ffffff;
+            border: 2px solid #f1f3f5;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease-out;
+            text-align: center;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .wizard-option-card:hover {
+            border-color: var(--primary-green);
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-hover);
+        }
+        
+        .wizard-option-card svg.opt-icon {
+            width: 54px; height: 54px;
+            color: var(--primary-green);
+            margin-bottom: 15px;
+            transition: transform 0.2s;
+        }
+        
+        .wizard-option-card:hover svg.opt-icon { transform: scale(1.1); }
+
+        .wizard-option-card h3 { 
+            margin: 0; 
+            font-size: 24px; 
+            color: var(--dark-green); 
+            font-weight: 700;
+        }
+
+        /* Step 2 specific layout */
+        .user-count-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 30px; width: 100%; max-width: 700px;
+        }
+
+        .back-link {
+            margin-top: 40px;
+            background: none; border: none;
+            color: #adb5bd; font-weight: 600; font-size: 14px;
+            cursor: pointer; display: flex; align-items: center; gap: 8px;
+            transition: color 0.2s;
+        }
+        .back-link:hover { color: var(--text-main); }
+        
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .sector-grid, .user-count-grid { grid-template-columns: 1fr; }
+            .wizard-card { padding: 30px 20px; }
+        }
+
+        #smart-tooltip { position: fixed; background: #ffffff; color: var(--text-main); padding: 12px; border-radius: 8px; font-size: 12px; width: auto; max-width: 300px; z-index: 10000; pointer-events: none; opacity: 0; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid var(--border-color); transition: opacity 0.2s; }
+        #smart-tooltip.visible { opacity: 1; }
+
+        .toast-container { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10001; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+        .toast { background: var(--dark-green); color: white; padding: 15px 30px; border-radius: 30px; font-size: 14px; font-weight: 700; box-shadow: 0 10px 40px rgba(0,0,0,0.3); opacity: 0; transform: scale(0.8); transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); text-align: center; }
+        .toast.show { opacity: 1; transform: scale(1); }
+
+        .no-results { text-align: center; padding: 60px 20px; color: var(--text-muted); font-weight: 600; }
+        .styled-select { padding: 8px 12px; border-radius: 8px; border: 2px solid #ced4da; font-weight: 600; outline: none; }
+    </style>
+</head>
+<body>
+
+<div id="smart-tooltip"></div>
+<div id="toast-container" class="toast-container"></div>
+
+<svg style="display:none">
+    <symbol id="arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14m-7-7 7 7-7 7"/></symbol>
+    <symbol id="back-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5m7 7-7-7 7-7"/></symbol>
+    <!-- New Icons -->
+    <symbol id="icon-comm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l8-4 8 4v14M8 21v-9a4 4 0 1 1 8 0v9"/></symbol>
+    <symbol id="icon-edu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></symbol>
+    <symbol id="icon-gov" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V10l7-5 7 5v11M9 10a3 3 0 1 0 6 0"/></symbol>
+    <symbol id="icon-front" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></symbol>
+    <symbol id="icon-smb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+    <symbol id="icon-ent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+</svg>
+
+<div id="wizard" class="wizard-overlay">
+    <div class="wizard-card">
+        <!-- Step 1 -->
+        <div id="step-1" class="wizard-step active">
+            <div class="wizard-header">
+                <h2>Select your sector</h2>
+            </div>
+            
+            <div class="sector-grid">
+                <div class="wizard-option-card" onclick="setStep1('Commercial')">
+                    <svg class="opt-icon"><use href="#icon-comm"/></svg>
+                    <h3>Commercial</h3>
+                </div>
+                <div class="wizard-option-card" onclick="setStep1('Education')">
+                    <svg class="opt-icon"><use href="#icon-edu"/></svg>
+                    <h3>Education</h3>
+                </div>
+                <div class="wizard-option-card" onclick="setStep1('Frontline Worker')">
+                    <svg class="opt-icon"><use href="#icon-front"/></svg>
+                    <h3>Frontline Workers</h3>
+                </div>
+                <div class="wizard-option-card" onclick="setStep1('US Government')">
+                    <svg class="opt-icon"><use href="#icon-gov"/></svg>
+                    <h3>US Government</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div id="step-2" class="wizard-step">
+            <div class="wizard-header">
+                <h2>How many users?</h2>
+            </div>
+
+            <div class="user-count-grid">
+                <div class="wizard-option-card" onclick="finishWizard('under')">
+                    <svg class="opt-icon"><use href="#icon-smb"/></svg>
+                    <h3>&lt;300 users</h3>
+                </div>
+                <div class="wizard-option-card" onclick="finishWizard('over')">
+                    <svg class="opt-icon"><use href="#icon-ent"/></svg>
+                    <h3>301+ users</h3>
+                </div>
+            </div>
+
+            <button class="back-link" onclick="goBackToStep1()">
+                <svg width="18" height="18"><use href="#back-arrow-icon"/></svg> Go back
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="app" class="finder-container">
+    <div class="app-header">
+        <div class="header-controls">
+            <select id="sector-sel" class="styled-select" onchange="resetAllOnSectorChange()">
+                <option value="Commercial">Commercial</option>
+                <option value="Education">Education</option>
+                <option value="Frontline Worker">Frontline Workers</option>
+                <option value="US Government">US Government</option>
+            </select>
+       <select id="user-sel" class="styled-select" onchange="sync()">
+    <option value="under">&lt;300 users</option>
+    <option value="over">301+ users</option>
+</select>
+            <label class="view-selected-toggle">
+                <input type="checkbox" id="toggle-selected-only" onchange="sync();"> Show selected only
+            </label>
+        </div>
+    </div>
+
+    <div class="app-body">
+        <div class="panel selector-panel">
+            <div class="search-area">
+                <div class="search-row">
+                    <div class="search-box">
+                        <input type="text" id="search-in" class="search-input" placeholder="Search features..." onkeyup="handleSearchInput()">
+                        <div id="search-clear" class="search-clear" onclick="clearSearch()">&times;</div>
+                    </div>
+                    <button class="reset-btn" onclick="resetFeats()">Reset</button>
+                </div>
+            </div>
+            <div id="feat-list" class="features-list"></div>
+        </div>
+
+        <div class="panel results-panel">
+            <div class="category-header">Match Details</div>
+            <div id="results" class="results-scroll"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+const CATEGORY_ORDER = ["Productivity", "Email & Storage", "Security and compliance", "CAL Equivalents", "Windows", "Other"];
+const META_TAGS = ["Commercial", "Education", "Frontline Worker", "US Government", "No user limit of 300"];
+
+const FEATURE_MAP = {
+    "Microsoft 365 for the web and mobile": "Productivity",
+    "Microsoft 365 Apps (local desktop applications)": "Productivity",
+    "Microsoft 365 Apps (Remote Desktop rights)": "Productivity",
+    "Teams": "Productivity",
+    "Teams Phone Standard": "Productivity",
+    "Power BI Pro": "Productivity"
+};
+
+const INCLUDES_THESE = {
+    "Microsoft 365 Apps (Remote Desktop Services rights)": ["Microsoft 365 Apps (local desktop applications)"],
+    "Microsoft 365 Apps (local desktop applications)": ["Microsoft 365 for the web and mobile"],
+    "Exchange Online Plan 2": ["Exchange Online Plan 1", "Exchange Online Archiving"],
+    "SharePoint Online Plan 2": ["SharePoint Online Plan 1"],
+    "OneDrive Plan 2": ["OneDrive Plan 1"],
+    "Entra ID Plan 2": ["Entra ID Plan 1"],
+    "Defender for Office 365 Plan 2": ["Defender for Office 365 Plan 2"]
+};
+
+// --- PASTE YOUR MATRIX DATA BELOW ---
+const RAW_DATA = `
+ 
+ 
+ 
+ 
+  Defender Suite Add-on	Purview Suite Add-on	Defender and Purview Suite Add-on for Business Premium	OneDrive Plan 1	OneDrive Plan 2	Teams Enterprise	Windows Enterprise E3	Windows Enterprise A3	Intune Plan 1	Entra ID Plan 1	Entra ID Plan 2	Exchange Online Plan 1	Exchange Online Plan 2	SharePoint Online Plan 1	SharePoint Online Plan 2	Power BI Pro 	Office 365 A1	Microsoft 365 F1 (no Teams)	Microsoft 365 F1 	Office 365 F3 (no Teams)	Office 365 F3 	Microsoft 365 F3 (no Teams)	Microsoft 365 F3 	Office 365 G1 	Microsoft 365 Business Basic (no Teams)	Microsoft 365 Business Basic 	Microsoft 365 Apps for Business 	Office 365 E1 (no Teams)	Office 365 E1 	EMS E3 	EMS E5 	Microsoft 365 Apps for Enterprise	Office 365 A3 (faculty)	Microsoft 365 Business Standard (no Teams)	Microsoft 365 Business Standard 	Microsoft 365 Business Premium (no Teams)	Microsoft 365 Business Premium 	Office 365 G3 	Office 365 E3 (no Teams)	Office 365 E3 	Microsoft 365 G3 	Microsoft 365 E3 (no Teams)	Microsoft 365 E3 	Office 365 G5 	Office 365 E5 (no Teams)	Office 365 E5 	Microsoft 365 G5 (no Teams)	Microsoft 365 G5 	Microsoft 365 A3 (faculty)	Microsoft 365 A5 (faculty)	Microsoft 365 E5 (no Teams)	Microsoft 365 E5 
+Commercial	Commercial	Commercial	Commercial	Commercial	Teams [Chat, video meetings, calling, and file sharing] [Collaborative workspace for chat, video meetings, and file sharing]	Commercial	Education	Commercial	Commercial	Commercial	Commercial	Commercial	Commercial	Commercial	Commercial	Education	Frontline Worker	Frontline Worker	Frontline Worker	Frontline Worker	Frontline Worker	Frontline Worker	US Government	Commercial	Commercial	Commercial	Commercial	Commercial	Commercial	Commercial	Commercial	Education	Commercial	Commercial	Commercial	Commercial	US Government	Commercial	Commercial	US Government	Commercial	Commercial	US Government	Commercial	Commercial	No user limit of 300	No user limit of 300	Education	Education	Commercial	Commercial
+US Government	US Government	US Government	US Government	US Government	Commercial	US Government	No user limit of 300	Education	Education	Education	US Government	US Government	US Government	US Government	Education	No user limit of 300	No user limit of 300	No user limit of 300	No user limit of 300	No user limit of 300	No user limit of 300	No user limit of 300	No user limit of 300	Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]	Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]	Microsoft 365 Apps (local desktop applications) [Fully installed versions of Word, Excel, PowerPoint, Publisher, Outlook, OneNote, and Access with offline capabilities]	No user limit of 300	No user limit of 300	Education	Education	Education	No user limit of 300	Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]	Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]	Azure Information Protection Plan 1 [Data classification, document labeling, and encryption]	Azure Information Protection Plan 1 [Data classification, document labeling, and encryption]	No user limit of 300	No user limit of 300	No user limit of 300	No user limit of 300	No user limit of 300	No user limit of 300	No user limit of 300	No user limit of 300	No user limit of 300	Government	Government	No user limit of 300	No user limit of 300	No user limit of 300	No user limit of 300
+Education	Education	Education	Education	Education	No user limit of 300	No user limit of 300	Windows Enterprise/Education [Upgrade operating system]	US Government	US Government	US Government	No user limit of 300	No user limit of 300	No user limit of 300	No user limit of 300	US Government	Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]	Azure Information Protection Plan 1 [Data classification, document labeling, and encryption]	Azure Information Protection Plan 1 [Data classification, document labeling, and encryption]	Exchange Online Kiosk (K1) [Basic email for deskless workers, 2 GB mailbox, web and mobile access, no desktop Outlook support]	Exchange Online Kiosk (K1) [Basic email for deskless workers, 2 GB mailbox, web and mobile access, no desktop Outlook support]	Azure Information Protection Plan 1 [Data classification, document labeling, and encryption]	Azure Information Protection Plan 1 [Data classification, document labeling, and encryption]	Audio Conferencing  [Dial-in phone numbers for Teams meetings, join by phone without internet]	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	CAL equivalent: Exchange Server (Standard)	CAL equivalent: Exchange Server (Standard)	US Government	US Government	No user limit of 300	CAL equivalent: Exchange Server (Enterprise)	Microsoft 365 Apps (local desktop applications) [Fully installed versions of Word, Excel, PowerPoint, Publisher, Outlook, OneNote, and Access with offline capabilities]	Microsoft 365 Apps (local desktop applications) [Fully installed versions of Word, Excel, PowerPoint, Publisher, Outlook, OneNote, and Access with offline capabilities]	Entra ID Plan 1 [Advanced identity management, Conditional Access, self-service password reset]	Entra ID Plan 1 [Advanced identity management, Conditional Access, self-service password reset]	CAL equivalent: Exchange Server (Enterprise)	CAL equivalent: Exchange Server (Enterprise)	CAL equivalent: Exchange Server (Enterprise)	Azure Information Protection Plan 1 [Data classification, document labeling, and encryption]	Azure Information Protection Plan 1 [Data classification, document labeling, and encryption]	Azure Information Protection Plan 1 [Data classification, document labeling, and encryption]	Audio Conferencing  [Dial-in phone numbers for Teams meetings, join by phone without internet]	CAL equivalent: Exchange Server (Enterprise)	Audio Conferencing  [Dial-in phone numbers for Teams meetings, join by phone without internet]	Audio Conferencing  [Dial-in phone numbers for Teams meetings, join by phone without internet]	Audio Conferencing  [Dial-in phone numbers for Teams meetings, join by phone without internet]	Azure Information Protection Plan 1 [Data classification, document labeling, and encryption]	Audio Conferencing  [Dial-in phone numbers for Teams meetings, join by phone without internet]	Audio Conferencing  [Dial-in phone numbers for Teams meetings, join by phone without internet]	Audio Conferencing  [Dial-in phone numbers for Teams meetings, join by phone without internet]
+Frontline Worker	Frontline Worker	Frontline Worker	No user limit of 300	No user limit of 300	Blacklist: E3;E5;Business	Windows Enterprise [Upgrade operating system]		No user limit of 300	No user limit of 300	No user limit of 300	CAL equivalent: Exchange Server (Standard)	CAL equivalent: Exchange Server (Enterprise)	CAL equivalent: Sharepoint Server (Standard)	CAL equivalent: Sharepoint Server (Enterprise)	Frontline Worker	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	CAL equivalent: Microsoft Endpoint Configuration Manager Management License	CAL equivalent: Microsoft Endpoint Configuration Manager Management License	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	CAL equivalent: Microsoft Endpoint Configuration Manager Management License	CAL equivalent: Microsoft Endpoint Configuration Manager Management License	CAL equivalent: Exchange Server (Standard)	OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]	OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]	OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]	CAL equivalent: Sharepoint Server (Standard)	CAL equivalent: Sharepoint Server (Standard)	No user limit of 300	No user limit of 300	Microsoft 365 Apps (local desktop applications) [Fully installed versions of Word, Excel, PowerPoint, Publisher, Outlook, OneNote, and Access with offline capabilities]	CAL equivalent: Exchange Server (Standard)	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	Exchange Online Archiving [Cloud-based archive mailbox, unlimited storage, eDiscovery, long-term retention]	Exchange Online Archiving [Cloud-based archive mailbox, unlimited storage, eDiscovery, long-term retention]	CAL equivalent: Exchange Server (Standard)	CAL equivalent: Exchange Server (Standard)	CAL equivalent: Exchange Server (Standard)	CAL equivalent: Exchange Server (Enterprise)	CAL equivalent: Exchange Server (Enterprise)	CAL equivalent: Exchange Server (Enterprise)	CAL equivalent: Exchange Server (Enterprise)	CAL equivalent: Exchange Server (Standard)	CAL equivalent: Exchange Server (Enterprise)	Azure Information Protection Plan 1 [Data classification, document labeling, and encryption]	Azure Information Protection Plan 1 [Data classification, document labeling, and encryption]	CAL equivalent: Exchange Server (Enterprise)	Azure Information Protection Plan 1 [Data classification, document labeling, and encryption]	Azure Information Protection Plan 1 [Data classification, document labeling, and encryption]	Azure Information Protection Plan 1 [Data classification, document labeling, and encryption]
+No user limit of 300	No user limit of 300	Entra ID Plan 2 [Plan 1 plus risk-based Conditional Access, Privileged Identity Management (PIM), and Access Reviews]	OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]	OneDrive Plan 2 [Cloud storage per user for personal file management. 1 TB for between 1-5 users. Up to 5 TB for 5+ users (further expandable on request)]				Intune Plan 1 [Cloud-based device and app management, security compliance policies]	Entra ID Plan 1 [Advanced identity management, Conditional Access, self-service password reset]	Entra ID Plan 2 [Plan 1 plus risk-based Conditional Access, Privileged Identity Management (PIM), and Access Reviews]	Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]	CAL equivalent: Exchange Server (Standard)	SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]	CAL equivalent: Sharepoint Server (Standard)	No user limit of 300	OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]	CAL equivalent: System Center Endpoint Protection Management License	CAL equivalent: System Center Endpoint Protection Management License	OneDrive Kiosk (2 GB) [Limited cloud storage for frontline workers, 2 GB capacity, basic file viewing and sharing]	OneDrive Kiosk (2 GB) [Limited cloud storage for frontline workers, 2 GB capacity, basic file viewing and sharing]	CAL equivalent: System Center Endpoint Protection Management License	CAL equivalent: System Center Endpoint Protection Management License	CAL equivalent: Sharepoint Server (Standard)	SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]	SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]		CAL equivalent: Skype for Business Server (Enterprise)	CAL equivalent: Skype for Business Server (Enterprise)	Azure Information Protection Plan 1 [Data classification, document labeling, and encryption]	Azure Information Protection Plan 1 [Data classification, document labeling, and encryption]	Microsoft 365 Apps (Remote Desktop Services rights) [Shared computer activation for running Office apps in RDS/VDI environments]	CAL equivalent: Sharepoint Server (Enterprise)	OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]	OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]	Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]	Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]	CAL equivalent: Sharepoint Server (Enterprise)	CAL equivalent: Sharepoint Server (Enterprise)	CAL equivalent: Sharepoint Server (Enterprise)	CAL equivalent: Exchange Server (Standard)	CAL equivalent: Exchange Server (Standard)	CAL equivalent: Exchange Server (Standard)	CAL equivalent: Exchange Server (Standard)	CAL equivalent: Sharepoint Server (Enterprise)	CAL equivalent: Exchange Server (Standard)	Azure Information Protection Plan 2 [Plan 1 plus automatic classification, labeling, and encryption policies]	Azure Information Protection Plan 2 [Plan 1 plus automatic classification, labeling, and encryption policies]	CAL equivalent: Exchange Server (Standard)	Azure Information Protection Plan 2 [Plan 1 plus automatic classification, labeling, and encryption policies]	Azure Information Protection Plan 2 [Plan 1 plus automatic classification, labeling, and encryption policies]	Azure Information Protection Plan 2 [Plan 1 plus automatic classification, labeling, and encryption policies]
+Entra ID Plan 2 [Plan 1 plus risk-based Conditional Access, Privileged Identity Management (PIM), and Access Reviews]	Information Protection and Governance [Advanced data classification, automatic labeling, and automated retention/deletion policies]	Microsoft Defender for Endpoint Plan 2 [Plan 1 plus Endpoint Detection and Response (EDR), automated remediation, and advanced threat hunting]		OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]						Entra ID Plan 1 [Advanced identity management, Conditional Access, self-service password reset]		Exchange Online Archiving [Cloud-based archive mailbox, unlimited storage, eDiscovery, long-term retention]		SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]	Power BI Pro [Individual analytics license, share reports, interactive dashboards] [Individual analytics license, share reports, interactive dashboards]	SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]	CAL equivalent: Windows Server	CAL equivalent: Windows Server	SharePoint Online Kiosk (K1) [Frontline collaboration, view/read-only intranet access, web-based form editing, no personal site]	SharePoint Online Kiosk (K1) [Frontline collaboration, view/read-only intranet access, web-based form editing, no personal site]	CAL equivalent: Windows Server	CAL equivalent: Windows Server	CAL equivalent: Skype for Business Server (Standard)		Teams [Chat, video meetings, calling, and file sharing] [Collaborative workspace for chat, video meetings, and file sharing]		CAL equivalent: Skype for Business Server (Standard)	CAL equivalent: Skype for Business Server (Standard)	CAL equivalent: Microsoft Endpoint Configuration Manager Management License	Azure Information Protection Plan 2 [Plan 1 plus automatic classification, labeling, and encryption policies]	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	CAL equivalent: Sharepoint Server (Standard)	SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]	SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]	Intune Plan 1 [Cloud-based device and app management, security compliance policies]	Intune Plan 1 [Cloud-based device and app management, security compliance policies]	CAL equivalent: Sharepoint Server (Standard)	CAL equivalent: Sharepoint Server (Standard)	CAL equivalent: Sharepoint Server (Standard)	CAL equivalent: Microsoft Endpoint Configuration Manager Management License	CAL equivalent: Microsoft Endpoint Configuration Manager Management License	CAL equivalent: Microsoft Endpoint Configuration Manager Management License	CAL equivalent: Sharepoint Server (Enterprise)	CAL equivalent: Sharepoint Server (Standard)	CAL equivalent: Sharepoint Server (Enterprise)	CAL equivalent: Exchange Server (Enterprise)	CAL equivalent: Exchange Server (Enterprise)	CAL equivalent: Microsoft Endpoint Configuration Manager Management License	CAL equivalent: Exchange Server (Enterprise)	CAL equivalent: Exchange Server (Enterprise)	CAL equivalent: Exchange Server (Enterprise)
+Microsoft Defender for Endpoint Plan 2 [Plan 1 plus Endpoint Detection and Response (EDR), automated remediation, and advanced threat hunting]	Insider Risk Management	Microsoft Defender for Cloud Apps [Cloud Access Security Broker (CASB), shadow IT visibility, and data protection across cloud apps]										Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]		SharePoint Online Plan 2 [Plan 1 plus unlimited storage, advanced search, eDiscovery, and Data Loss Prevention] [Advanced intranet]		Teams [Chat, video meetings, calling, and file sharing] [Collaborative workspace for chat, video meetings, and file sharing]	Entra ID Plan 1 [Advanced identity management, Conditional Access, self-service password reset]	Entra ID Plan 1 [Advanced identity management, Conditional Access, self-service password reset]		Teams [Chat, video meetings, calling, and file sharing] [Collaborative workspace for chat, video meetings, and file sharing]	Entra ID Plan 1 [Advanced identity management, Conditional Access, self-service password reset]	Entra ID Plan 1 [Advanced identity management, Conditional Access, self-service password reset]	Exchange Online Archiving [Cloud-based archive mailbox, unlimited storage, eDiscovery, long-term retention]				Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]	Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]	CAL equivalent: System Center Endpoint Protection Management License	CAL equivalent: Microsoft Endpoint Configuration Manager Management License	OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]	CAL equivalent: Skype for Business Server (Enterprise)		Teams [Chat, video meetings, calling, and file sharing] [Collaborative workspace for chat, video meetings, and file sharing]	Microsoft 365 Apps (local desktop applications) [Fully installed versions of Word, Excel, PowerPoint, Publisher, Outlook, OneNote, and Access with offline capabilities]	Microsoft 365 Apps (local desktop applications) [Fully installed versions of Word, Excel, PowerPoint, Publisher, Outlook, OneNote, and Access with offline capabilities]	CAL equivalent: Skype for Business Server (Enterprise)	CAL equivalent: Skype for Business Server (Enterprise)	CAL equivalent: Skype for Business Server (Enterprise)	CAL equivalent: Sharepoint Server (Enterprise)	CAL equivalent: Sharepoint Server (Enterprise)	CAL equivalent: Sharepoint Server (Enterprise)	CAL equivalent: Sharepoint Server (Standard)	CAL equivalent: Skype for Business Server (Enterprise)	CAL equivalent: Sharepoint Server (Standard)	CAL equivalent: Exchange Server (Standard)	CAL equivalent: Exchange Server (Standard)	CAL equivalent: Sharepoint Server (Enterprise)	CAL equivalent: Exchange Server (Standard)	CAL equivalent: Exchange Server (Standard)	CAL equivalent: Exchange Server (Standard)
+Microsoft Defender for Cloud Apps [Cloud Access Security Broker (CASB), shadow IT visibility, and data protection across cloud apps]	eDiscovery and Audit	Microsoft Defender for Identity [Cloud-based security for on-premises AD, detects lateral movement and compromised identities]										Exchange Online Plan 2 [Plan 1 plus advanced hosted email, 100 GB mailbox, Data Loss Prevention]					Exchange Online Calendar only [Cloud-based scheduling and shared calendars without full email services]	Exchange Online Calendar only [Cloud-based scheduling and shared calendars without full email services]			Exchange Online Kiosk (K1) [Basic email for deskless workers, 2 GB mailbox, web and mobile access, no desktop Outlook support]	Exchange Online Kiosk (K1) [Basic email for deskless workers, 2 GB mailbox, web and mobile access, no desktop Outlook support]	Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]				Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	CAL equivalent: Windows Server	CAL equivalent: System Center Endpoint Protection Management License		CAL equivalent: Skype for Business Server (Standard)			Microsoft 365 Apps (Remote Desktop Services rights) [Shared computer activation for running Office apps in RDS/VDI environments]	Microsoft 365 Apps (Remote Desktop Services rights) [Shared computer activation for running Office apps in RDS/VDI environments]	CAL equivalent: Skype for Business Server (Standard)	CAL equivalent: Skype for Business Server (Standard)	CAL equivalent: Skype for Business Server (Standard)	CAL equivalent: Sharepoint Server (Standard)	CAL equivalent: Sharepoint Server (Standard)	CAL equivalent: Sharepoint Server (Standard)	CAL equivalent: Skype for Business Server (Enterprise)	CAL equivalent: Skype for Business Server (Plus)	CAL equivalent: Sharepoint Server (Standard)	CAL equivalent: Microsoft Endpoint Configuration Manager Management License	CAL equivalent: Microsoft Endpoint Configuration Manager Management License	CAL equivalent: Sharepoint Server (Standard)	CAL equivalent: Microsoft Endpoint Configuration Manager Management License	CAL equivalent: Microsoft Endpoint Configuration Manager Management License	CAL equivalent: Microsoft Endpoint Configuration Manager Management License
+Microsoft Defender for Identity [Cloud-based security for on-premises AD, detects lateral movement and compromised identities]	Prerequisite: Microsoft 365 E3;Microsoft 365 F3;Microsoft 365 Business Premium	Microsoft Defender for Office 365 Plan 2 [Plan 1 plus automated investigation, threat hunting, and attack simulation]															Intune Plan 1 [Cloud-based device and app management, security compliance policies]	Intune Plan 1 [Cloud-based device and app management, security compliance policies]			Intune Plan 1 [Cloud-based device and app management, security compliance policies]	Intune Plan 1 [Cloud-based device and app management, security compliance policies]	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]				OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]	OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]	Entra ID Plan 1 [Advanced identity management, Conditional Access, self-service password reset]	CAL equivalent: Windows Server		Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]			Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]	Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]	Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]	CAL equivalent: Skype for Business Server (Enterprise)	CAL equivalent: Skype for Business Server (Enterprise)	CAL equivalent: Skype for Business Server (Enterprise)	CAL equivalent: Skype for Business Server (Plus)	CAL equivalent: Skype for Business Server (Standard)	CAL equivalent: Skype for Business Server (Enterprise)	CAL equivalent: Sharepoint Server (Enterprise)	CAL equivalent: Sharepoint Server (Enterprise)	CAL equivalent: Skype for Business Server (Enterprise)	CAL equivalent: Sharepoint Server (Enterprise)	CAL equivalent: Sharepoint Server (Enterprise)	CAL equivalent: Sharepoint Server (Enterprise)
+Microsoft Defender for Office 365 Plan 2 [Plan 1 plus automated investigation, threat hunting, and attack simulation]		Microsoft Defender for Endpoint Plan 1 [Foundational endpoint security, next-gen antivirus, attack surface reduction]															Microsoft 365 for the web and mobile – Read only [Web-based Office apps and mobile versions for document viewing]	Microsoft 365 for the web and mobile – Read only [Web-based Office apps and mobile versions for document viewing]			Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]				SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]	SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]	Intune Plan 1 [Cloud-based device and app management, security compliance policies]	Entra ID Plan 1 [Advanced identity management, Conditional Access, self-service password reset]		Exchange Online Plan 2 [Plan 1 plus advanced hosted email, 100 GB mailbox, Data Loss Prevention]			Microsoft Defender for Business [Enterprise-grade endpoint security for SMBs, includes EDR, automated remediation, and next-gen antivirus]	Microsoft Defender for Business [Enterprise-grade endpoint security for SMBs, includes EDR, automated remediation, and next-gen antivirus]	Exchange Online Plan 2 [Plan 1 plus advanced hosted email, 100 GB mailbox, Data Loss Prevention]	Exchange Online Plan 2 [Plan 1 plus advanced hosted email, 100 GB mailbox, Data Loss Prevention]	Exchange Online Plan 2 [Plan 1 plus advanced hosted email, 100 GB mailbox, Data Loss Prevention]	CAL equivalent: Skype for Business Server (Standard)	CAL equivalent: Skype for Business Server (Standard)	CAL equivalent: Skype for Business Server (Standard)	CAL equivalent: Skype for Business Server (Standard)	Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]	CAL equivalent: Skype for Business Server (Plus)	CAL equivalent: Sharepoint Server (Standard)	CAL equivalent: Sharepoint Server (Standard)	CAL equivalent: Skype for Business Server (Standard)	CAL equivalent: Sharepoint Server (Standard)	CAL equivalent: Sharepoint Server (Standard)	CAL equivalent: Sharepoint Server (Standard)
+Microsoft Defender for Endpoint Plan 1 [Foundational endpoint security, next-gen antivirus, attack surface reduction]		Microsoft Defender for Office 365 Plan 1 [Security for email/collaboration, Safe Links, Safe Attachments, anti-phishing]															OneDrive Kiosk (2 GB) [Limited cloud storage for frontline workers, 2 GB capacity, basic file viewing and sharing]	OneDrive Kiosk (2 GB) [Limited cloud storage for frontline workers, 2 GB capacity, basic file viewing and sharing]			OneDrive Kiosk (2 GB) [Limited cloud storage for frontline workers, 2 GB capacity, basic file viewing and sharing]	OneDrive Kiosk (2 GB) [Limited cloud storage for frontline workers, 2 GB capacity, basic file viewing and sharing]	SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]					Teams [Chat, video meetings, calling, and file sharing] [Collaborative workspace for chat, video meetings, and file sharing]		Entra ID Plan 2 [Plan 1 plus risk-based Conditional Access, Privileged Identity Management (PIM), and Access Reviews]		Microsoft 365 Apps (local desktop applications) [Fully installed versions of Word, Excel, PowerPoint, Publisher, Outlook, OneNote, and Access with offline capabilities]			Microsoft Defender for Office 365 Plan 1 [Security for email/collaboration, Safe Links, Safe Attachments, anti-phishing]	Microsoft Defender for Office 365 Plan 1 [Security for email/collaboration, Safe Links, Safe Attachments, anti-phishing]	Microsoft 365 Apps (local desktop applications) [Fully installed versions of Word, Excel, PowerPoint, Publisher, Outlook, OneNote, and Access with offline capabilities]	Microsoft 365 Apps (local desktop applications) [Fully installed versions of Word, Excel, PowerPoint, Publisher, Outlook, OneNote, and Access with offline capabilities]	Microsoft 365 Apps (local desktop applications) [Fully installed versions of Word, Excel, PowerPoint, Publisher, Outlook, OneNote, and Access with offline capabilities]	CAL equivalent: System Center Endpoint Protection Management License	CAL equivalent: System Center Endpoint Protection Management License	CAL equivalent: System Center Endpoint Protection Management License	Exchange Online Archiving [Cloud-based archive mailbox, unlimited storage, eDiscovery, long-term retention]	Exchange Online Plan 2 [Plan 1 plus advanced hosted email, 100 GB mailbox, Data Loss Prevention]	Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]	CAL equivalent: Skype for Business Server (Enterprise)	CAL equivalent: Skype for Business Server (Enterprise)	CAL equivalent: System Center Endpoint Protection Management License	CAL equivalent: Skype for Business Server (Enterprise)	CAL equivalent: Skype for Business Server (Enterprise)	CAL equivalent: Skype for Business Server (Enterprise)
+Microsoft Defender for Office 365 Plan 1 [Security for email/collaboration, Safe Links, Safe Attachments, anti-phishing]		Information Protection and Governance [Advanced data classification, automatic labeling, and automated retention/deletion policies]															SharePoint Online Kiosk (K1) [Frontline collaboration, view/read-only intranet access, web-based form editing, no personal site]	SharePoint Online Kiosk (K1) [Frontline collaboration, view/read-only intranet access, web-based form editing, no personal site]			SharePoint Online Kiosk (K1) [Frontline collaboration, view/read-only intranet access, web-based form editing, no personal site]	SharePoint Online Kiosk (K1) [Frontline collaboration, view/read-only intranet access, web-based form editing, no personal site]	Teams [Chat, video meetings, calling, and file sharing] [Collaborative workspace for chat, video meetings, and file sharing]							Intune Plan 1 [Cloud-based device and app management, security compliance policies]		Microsoft 365 Apps (Remote Desktop Services rights) [Shared computer activation for running Office apps in RDS/VDI environments]			OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]	OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]	Microsoft 365 Apps (Remote Desktop Services rights) [Shared computer activation for running Office apps in RDS/VDI environments]	Microsoft 365 Apps (Remote Desktop Services rights) [Shared computer activation for running Office apps in RDS/VDI environments]	Microsoft 365 Apps (Remote Desktop Services rights) [Shared computer activation for running Office apps in RDS/VDI environments]	CAL equivalent: Windows Server	CAL equivalent: Windows Server	CAL equivalent: Windows Server	Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]	Microsoft 365 Apps (local desktop applications) [Fully installed versions of Word, Excel, PowerPoint, Publisher, Outlook, OneNote, and Access with offline capabilities]	Exchange Online Plan 2 [Plan 1 plus advanced hosted email, 100 GB mailbox, Data Loss Prevention]	CAL equivalent: Skype for Business Server (Plus)	CAL equivalent: Skype for Business Server (Plus)	CAL equivalent: Windows Server	CAL equivalent: Skype for Business Server (Plus)	CAL equivalent: Skype for Business Server (Plus)	CAL equivalent: Skype for Business Server (Plus)
+Prerequisite: Microsoft 365 E3;Microsoft 365 F3;Microsoft 365 Business Premium		Insider Risk Management																Teams [Chat, video meetings, calling, and file sharing] [Collaborative workspace for chat, video meetings, and file sharing]			Windows Enterprise [Upgrade operating system]	Teams [Chat, video meetings, calling, and file sharing] [Collaborative workspace for chat, video meetings, and file sharing]								Microsoft Defender for Cloud Apps [Cloud Access Security Broker (CASB), shadow IT visibility, and data protection across cloud apps]		OneDrive Plan 2 [Cloud storage per user for personal file management. 1 TB for between 1-5 users. Up to 5 TB for 5+ users (further expandable on request)]			Purview Data Loss Prevention [Identifies and protects sensitive information across apps, prevents accidental data leaks]	Purview Data Loss Prevention [Identifies and protects sensitive information across apps, prevents accidental data leaks]	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	Entra ID Plan 1 [Advanced identity management, Conditional Access, self-service password reset]	Entra ID Plan 1 [Advanced identity management, Conditional Access, self-service password reset]	Entra ID Plan 1 [Advanced identity management, Conditional Access, self-service password reset]	Exchange Online Plan 2 [Plan 1 plus advanced hosted email, 100 GB mailbox, Data Loss Prevention]	Microsoft 365 Apps (Remote Desktop Services rights) [Shared computer activation for running Office apps in RDS/VDI environments]	Microsoft 365 Apps (local desktop applications) [Fully installed versions of Word, Excel, PowerPoint, Publisher, Outlook, OneNote, and Access with offline capabilities]	CAL equivalent: Skype for Business Server (Standard)	CAL equivalent: Skype for Business Server (Standard)	Entra ID Plan 1 [Advanced identity management, Conditional Access, self-service password reset]	CAL equivalent: Skype for Business Server (Standard)	CAL equivalent: Skype for Business Server (Standard)	CAL equivalent: Skype for Business Server (Standard)
+		eDiscovery and Audit																				Windows Enterprise [Upgrade operating system]								Microsoft Defender for Identity [Cloud-based security for on-premises AD, detects lateral movement and compromised identities]		SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]			SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]	SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]	Purview Data Loss Prevention [Identifies and protects sensitive information across apps, prevents accidental data leaks]	OneDrive Plan 2 [Cloud storage per user for personal file management. 1 TB for between 1-5 users. Up to 5 TB for 5+ users (further expandable on request)]	OneDrive Plan 2 [Cloud storage per user for personal file management. 1 TB for between 1-5 users. Up to 5 TB for 5+ users (further expandable on request)]	Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]	Exchange Online Archiving [Cloud-based archive mailbox, unlimited storage, eDiscovery, long-term retention]	Exchange Online Archiving [Cloud-based archive mailbox, unlimited storage, eDiscovery, long-term retention]	Microsoft 365 Apps (local desktop applications) [Fully installed versions of Word, Excel, PowerPoint, Publisher, Outlook, OneNote, and Access with offline capabilities]	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	Microsoft 365 Apps (Remote Desktop Services rights) [Shared computer activation for running Office apps in RDS/VDI environments]	CAL equivalent: System Center Endpoint Protection Management License	CAL equivalent: System Center Endpoint Protection Management License	Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]	CAL equivalent: System Center Endpoint Protection Management License	CAL equivalent: System Center Endpoint Protection Management License	CAL equivalent: System Center Endpoint Protection Management License
+		Prerequisite: Microsoft 365 Business Premium																														SharePoint Online Plan 2 [Plan 1 plus unlimited storage, advanced search, eDiscovery, and Data Loss Prevention] [Advanced intranet]			Windows Pro [Upgrade operating system]	Teams [Chat, video meetings, calling, and file sharing] [Collaborative workspace for chat, video meetings, and file sharing]	SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]	SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]	Purview Data Loss Prevention [Identifies and protects sensitive information across apps, prevents accidental data leaks]	Exchange Online Plan 2 [Plan 1 plus advanced hosted email, 100 GB mailbox, Data Loss Prevention]	Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]	Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]	Microsoft 365 Apps (Remote Desktop Services rights) [Shared computer activation for running Office apps in RDS/VDI environments]	Microsoft Defender for Office 365 Plan 1 [Security for email/collaboration, Safe Links, Safe Attachments, anti-phishing]	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	CAL equivalent: Windows Server	CAL equivalent: Windows Server	Exchange Online Plan 2 [Plan 1 plus advanced hosted email, 100 GB mailbox, Data Loss Prevention]	CAL equivalent: Windows Server	CAL equivalent: Windows Server	CAL equivalent: Windows Server
+																																Teams [Chat, video meetings, calling, and file sharing] [Collaborative workspace for chat, video meetings, and file sharing]				Windows Pro [Upgrade operating system]	SharePoint Online Plan 2 [Plan 1 plus unlimited storage, advanced search, eDiscovery, and Data Loss Prevention] [Advanced intranet]	SharePoint Online Plan 2 [Plan 1 plus unlimited storage, advanced search, eDiscovery, and Data Loss Prevention] [Advanced intranet]	SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]	Intune Plan 1 [Cloud-based device and app management, security compliance policies]	Exchange Online Plan 2 [Plan 1 plus advanced hosted email, 100 GB mailbox, Data Loss Prevention]	Exchange Online Plan 2 [Plan 1 plus advanced hosted email, 100 GB mailbox, Data Loss Prevention]	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	Microsoft Defender for Office 365 Plan 2 [Plan 1 plus automated investigation, threat hunting, and attack simulation]	Microsoft Defender for Office 365 Plan 1 [Security for email/collaboration, Safe Links, Safe Attachments, anti-phishing]	eDiscovery and Audit [Advanced legal discovery, long-term audit logs, and predictive coding]	eDiscovery and Audit [Advanced legal discovery, long-term audit logs, and predictive coding]	Intune Plan 1 [Cloud-based device and app management, security compliance policies]	eDiscovery and Audit [Advanced legal discovery, long-term audit logs, and predictive coding]	eDiscovery and Audit [Advanced legal discovery, long-term audit logs, and predictive coding]	eDiscovery and Audit [Advanced legal discovery, long-term audit logs, and predictive coding]
+																																OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]					Teams [Chat, video meetings, calling, and file sharing] [Collaborative workspace for chat, video meetings, and file sharing]	OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]	SharePoint Online Plan 2 [Plan 1 plus unlimited storage, advanced search, eDiscovery, and Data Loss Prevention] [Advanced intranet]	Microsoft 365 Apps (local desktop applications) [Fully installed versions of Word, Excel, PowerPoint, Publisher, Outlook, OneNote, and Access with offline capabilities]	Intune Plan 1 [Cloud-based device and app management, security compliance policies]	Intune Plan 1 [Cloud-based device and app management, security compliance policies]	OneDrive Plan 2 [Cloud storage per user for personal file management. 1 TB for between 1-5 users. Up to 5 TB for 5+ users (further expandable on request)]	OneDrive Plan 2 [Cloud storage per user for personal file management. 1 TB for between 1-5 users. Up to 5 TB for 5+ users (further expandable on request)]	Microsoft Defender for Office 365 Plan 2 [Plan 1 plus automated investigation, threat hunting, and attack simulation]	Entra ID Plan 1 [Advanced identity management, Conditional Access, self-service password reset]	Entra ID Plan 1 [Advanced identity management, Conditional Access, self-service password reset]	Intune Remote Help	Entra ID Plan 1 [Advanced identity management, Conditional Access, self-service password reset]	Entra ID Plan 1 [Advanced identity management, Conditional Access, self-service password reset]	Entra ID Plan 1 [Advanced identity management, Conditional Access, self-service password reset]
+																																							Teams [Chat, video meetings, calling, and file sharing]	Microsoft 365 Apps (Remote Desktop Services rights) [Shared computer activation for running Office apps in RDS/VDI environments]	Microsoft 365 Apps (local desktop applications) [Fully installed versions of Word, Excel, PowerPoint, Publisher, Outlook, OneNote, and Access with offline capabilities]	Microsoft 365 Apps (local desktop applications) [Fully installed versions of Word, Excel, PowerPoint, Publisher, Outlook, OneNote, and Access with offline capabilities]	Power BI Pro [Individual analytics license, share reports, interactive dashboards] [Individual analytics license, share reports, interactive dashboards]	Power BI Pro [Individual analytics license, share reports, interactive dashboards] [Individual analytics license, share reports, interactive dashboards]	OneDrive Plan 2 [Cloud storage per user for personal file management. 1 TB for between 1-5 users. Up to 5 TB for 5+ users (further expandable on request)]	Entra ID Plan 2 [Plan 1 plus risk-based Conditional Access, Privileged Identity Management (PIM), and Access Reviews]	Entra ID Plan 2 [Plan 1 plus risk-based Conditional Access, Privileged Identity Management (PIM), and Access Reviews]	Microsoft 365 Apps (local desktop applications) [Fully installed versions of Word, Excel, PowerPoint, Publisher, Outlook, OneNote, and Access with offline capabilities]	Entra ID Plan 2 [Plan 1 plus risk-based Conditional Access, Privileged Identity Management (PIM), and Access Reviews]	Entra ID Plan 2 [Plan 1 plus risk-based Conditional Access, Privileged Identity Management (PIM), and Access Reviews]	Entra ID Plan 2 [Plan 1 plus risk-based Conditional Access, Privileged Identity Management (PIM), and Access Reviews]
+																																							OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	Microsoft 365 Apps (Remote Desktop Services rights) [Shared computer activation for running Office apps in RDS/VDI environments]	Microsoft 365 Apps (Remote Desktop Services rights) [Shared computer activation for running Office apps in RDS/VDI environments]	Purview Data Loss Prevention [Identifies and protects sensitive information across apps, prevents accidental data leaks]	Purview Data Loss Prevention [Identifies and protects sensitive information across apps, prevents accidental data leaks]	Power BI Pro [Individual analytics license, share reports, interactive dashboards] [Individual analytics license, share reports, interactive dashboards]	Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]	Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]	Microsoft 365 Apps (Remote Desktop Services rights) [Shared computer activation for running Office apps in RDS/VDI environments]	Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]	Exchange Online Archiving [Cloud-based archive mailbox, unlimited storage, eDiscovery, long-term retention]	Exchange Online Archiving [Cloud-based archive mailbox, unlimited storage, eDiscovery, long-term retention]
+																																								Microsoft Defender for Endpoint Plan 1 [Foundational endpoint security, next-gen antivirus, attack surface reduction]	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]	SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]	Purview Data Loss Prevention [Identifies and protects sensitive information across apps, prevents accidental data leaks]	Exchange Online Plan 2 [Plan 1 plus advanced hosted email, 100 GB mailbox, Data Loss Prevention]	Exchange Online Plan 2 [Plan 1 plus advanced hosted email, 100 GB mailbox, Data Loss Prevention]	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	Exchange Online Plan 2 [Plan 1 plus advanced hosted email, 100 GB mailbox, Data Loss Prevention]	Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]	Exchange Online Plan 1 [Professional hosted email, 50 GB mailbox, shared calendars]
+																																								OneDrive Plan 2 [Cloud storage per user for personal file management. 1 TB for between 1-5 users. Up to 5 TB for 5+ users (further expandable on request)]	Microsoft Defender for Endpoint Plan 1 [Foundational endpoint security, next-gen antivirus, attack surface reduction]	Microsoft Defender for Endpoint Plan 1 [Foundational endpoint security, next-gen antivirus, attack surface reduction]	SharePoint Online Plan 2 [Plan 1 plus unlimited storage, advanced search, eDiscovery, and Data Loss Prevention] [Advanced intranet]	SharePoint Online Plan 2 [Plan 1 plus unlimited storage, advanced search, eDiscovery, and Data Loss Prevention] [Advanced intranet]	SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]	Information Protection and Governance [Advanced data classification, automatic labeling, and automated retention/deletion policies]	Information Protection and Governance [Advanced data classification, automatic labeling, and automated retention/deletion policies]	Microsoft Defender for Endpoint Plan 1 [Foundational endpoint security, next-gen antivirus, attack surface reduction]	Information Protection and Governance [Advanced data classification, automatic labeling, and automated retention/deletion policies]	Exchange Online Plan 2 [Plan 1 plus advanced hosted email, 100 GB mailbox, Data Loss Prevention]	Exchange Online Plan 2 [Plan 1 plus advanced hosted email, 100 GB mailbox, Data Loss Prevention]
+																																								Purview Data Loss Prevention [Identifies and protects sensitive information across apps, prevents accidental data leaks]	OneDrive Plan 2 [Cloud storage per user for personal file management. 1 TB for between 1-5 users. Up to 5 TB for 5+ users (further expandable on request)]	OneDrive Plan 2 [Cloud storage per user for personal file management. 1 TB for between 1-5 users. Up to 5 TB for 5+ users (further expandable on request)]	Teams [Chat, video meetings, calling, and file sharing] [Collaborative workspace for chat, video meetings, and file sharing]	OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]	SharePoint Online Plan 2 [Plan 1 plus unlimited storage, advanced search, eDiscovery, and Data Loss Prevention] [Advanced intranet]	Insider Risk Management [Detects and remediates malicious or unintentional internal risks, such as data theft or policy violations]	Insider Risk Management [Detects and remediates malicious or unintentional internal risks, such as data theft or policy violations]	Minecraft: Education Edition	Insider Risk Management [Detects and remediates malicious or unintentional internal risks, such as data theft or policy violations]	Information Protection and Governance [Advanced data classification, automatic labeling, and automated retention/deletion policies]	Information Protection and Governance [Advanced data classification, automatic labeling, and automated retention/deletion policies]
+																																								SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]	Purview Data Loss Prevention [Identifies and protects sensitive information across apps, prevents accidental data leaks]	Purview Data Loss Prevention [Identifies and protects sensitive information across apps, prevents accidental data leaks]	Teams Phone Standard [Cloud-based PBX, auto attendants, call queues, and voicemail; requires separate PSTN connectivity]		Teams [Chat, video meetings, calling, and file sharing] [Collaborative workspace for chat, video meetings, and file sharing]	Intune Plan 1 [Cloud-based device and app management, security compliance policies]	Intune Plan 1 [Cloud-based device and app management, security compliance policies]	OneDrive Plan 2 [Cloud storage per user for personal file management. 1 TB for between 1-5 users. Up to 5 TB for 5+ users (further expandable on request)]	Intune Plan 1 [Cloud-based device and app management, security compliance policies]	Insider Risk Management [Detects and remediates malicious or unintentional internal risks, such as data theft or policy violations]	Insider Risk Management [Detects and remediates malicious or unintentional internal risks, such as data theft or policy violations]
+																																								SharePoint Online Plan 2 [Plan 1 plus unlimited storage, advanced search, eDiscovery, and Data Loss Prevention] [Advanced intranet]	SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]	SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]	OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]		Teams Phone Standard [Cloud-based PBX, auto attendants, call queues, and voicemail; requires separate PSTN connectivity]	Microsoft 365 Apps (local desktop applications) [Fully installed versions of Word, Excel, PowerPoint, Publisher, Outlook, OneNote, and Access with offline capabilities]	Microsoft 365 Apps (local desktop applications) [Fully installed versions of Word, Excel, PowerPoint, Publisher, Outlook, OneNote, and Access with offline capabilities]	Purview Data Loss Prevention [Identifies and protects sensitive information across apps, prevents accidental data leaks]	Intune Remote Help	Intune Plan 1 [Cloud-based device and app management, security compliance policies]	Intune Plan 1 [Cloud-based device and app management, security compliance policies]
+																																								Teams [Chat, video meetings, calling, and file sharing] [Collaborative workspace for chat, video meetings, and file sharing]	SharePoint Online Plan 2 [Plan 1 plus unlimited storage, advanced search, eDiscovery, and Data Loss Prevention] [Advanced intranet]	SharePoint Online Plan 2 [Plan 1 plus unlimited storage, advanced search, eDiscovery, and Data Loss Prevention] [Advanced intranet]			OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]	Microsoft 365 Apps (Remote Desktop Services rights) [Shared computer activation for running Office apps in RDS/VDI environments]	Microsoft 365 Apps (Remote Desktop Services rights) [Shared computer activation for running Office apps in RDS/VDI environments]	SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]	Microsoft 365 Apps (local desktop applications) [Fully installed versions of Word, Excel, PowerPoint, Publisher, Outlook, OneNote, and Access with offline capabilities]	Microsoft 365 Apps (local desktop applications) [Fully installed versions of Word, Excel, PowerPoint, Publisher, Outlook, OneNote, and Access with offline capabilities]	Microsoft 365 Apps (local desktop applications) [Fully installed versions of Word, Excel, PowerPoint, Publisher, Outlook, OneNote, and Access with offline capabilities]
+																																								Windows Enterprise [Upgrade operating system]	Windows Enterprise [Upgrade operating system]	Teams [Chat, video meetings, calling, and file sharing] [Collaborative workspace for chat, video meetings, and file sharing]				Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	SharePoint Online Plan 2 [Plan 1 plus unlimited storage, advanced search, eDiscovery, and Data Loss Prevention] [Advanced intranet]	Microsoft 365 Apps (Remote Desktop Services rights) [Shared computer activation for running Office apps in RDS/VDI environments]	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]
+																																								OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]	OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]	Windows Enterprise [Upgrade operating system]				Microsoft Defender for Cloud Apps [Cloud Access Security Broker (CASB), shadow IT visibility, and data protection across cloud apps]	Microsoft Defender for Cloud Apps [Cloud Access Security Broker (CASB), shadow IT visibility, and data protection across cloud apps]	Teams [Chat, video meetings, calling, and file sharing] [Collaborative workspace for chat, video meetings, and file sharing]	Microsoft 365 for the web and mobile [Web-based Office apps and mobile versions for viewing and document editing]	Microsoft Defender for Cloud Apps [Cloud Access Security Broker (CASB), shadow IT visibility, and data protection across cloud apps]	Microsoft Defender for Cloud Apps [Cloud Access Security Broker (CASB), shadow IT visibility, and data protection across cloud apps]
+																																										OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]				Microsoft Defender for Endpoint Plan 1 [Foundational endpoint security, next-gen antivirus, attack surface reduction]	Microsoft Defender for Endpoint Plan 1 [Foundational endpoint security, next-gen antivirus, attack surface reduction]	Windows Enterprise/Education [Upgrade operating system]	Microsoft Defender for Cloud Apps [Cloud Access Security Broker (CASB), shadow IT visibility, and data protection across cloud apps]	Microsoft Defender for Endpoint Plan 1 [Foundational endpoint security, next-gen antivirus, attack surface reduction]	Microsoft Defender for Endpoint Plan 1 [Foundational endpoint security, next-gen antivirus, attack surface reduction]
+																																														Microsoft Defender for Endpoint Plan 2 [Plan 1 plus Endpoint Detection and Response (EDR), automated remediation, and advanced threat hunting]	Microsoft Defender for Endpoint Plan 2 [Plan 1 plus Endpoint Detection and Response (EDR), automated remediation, and advanced threat hunting]	OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]	Microsoft Defender for Endpoint Plan 1 [Foundational endpoint security, next-gen antivirus, attack surface reduction]	Microsoft Defender for Endpoint Plan 2 [Plan 1 plus Endpoint Detection and Response (EDR), automated remediation, and advanced threat hunting]	Microsoft Defender for Endpoint Plan 2 [Plan 1 plus Endpoint Detection and Response (EDR), automated remediation, and advanced threat hunting]
+																																														Microsoft Defender for Identity [Cloud-based security for on-premises AD, detects lateral movement and compromised identities]	Microsoft Defender for Identity [Cloud-based security for on-premises AD, detects lateral movement and compromised identities]		Microsoft Defender for Endpoint Plan 2 [Plan 1 plus Endpoint Detection and Response (EDR), automated remediation, and advanced threat hunting]	Microsoft Defender for Identity [Cloud-based security for on-premises AD, detects lateral movement and compromised identities]	Microsoft Defender for Identity [Cloud-based security for on-premises AD, detects lateral movement and compromised identities]
+																																														Microsoft Defender for IoT - EIoT [Secures unmanaged enterprise IoT devices, discovery, vulnerability management, and threat detection]	Microsoft Defender for IoT - EIoT [Secures unmanaged enterprise IoT devices, discovery, vulnerability management, and threat detection]		Microsoft Defender for Identity [Cloud-based security for on-premises AD, detects lateral movement and compromised identities]	Microsoft Defender for IoT - EIoT [Secures unmanaged enterprise IoT devices, discovery, vulnerability management, and threat detection]	Microsoft Defender for IoT - EIoT [Secures unmanaged enterprise IoT devices, discovery, vulnerability management, and threat detection]
+																																														Microsoft Defender for Office 365 Plan 1 [Security for email/collaboration, Safe Links, Safe Attachments, anti-phishing]	Microsoft Defender for Office 365 Plan 1 [Security for email/collaboration, Safe Links, Safe Attachments, anti-phishing]		Microsoft Defender for IoT - EIoT [Secures unmanaged enterprise IoT devices, discovery, vulnerability management, and threat detection]	Microsoft Defender for Office 365 Plan 1 [Security for email/collaboration, Safe Links, Safe Attachments, anti-phishing]	Microsoft Defender for Office 365 Plan 1 [Security for email/collaboration, Safe Links, Safe Attachments, anti-phishing]
+																																														Microsoft Defender for Office 365 Plan 2 [Plan 1 plus automated investigation, threat hunting, and attack simulation]	Microsoft Defender for Office 365 Plan 2 [Plan 1 plus automated investigation, threat hunting, and attack simulation]		Microsoft Defender for Office 365 Plan 1 [Security for email/collaboration, Safe Links, Safe Attachments, anti-phishing]	Microsoft Defender for Office 365 Plan 2 [Plan 1 plus automated investigation, threat hunting, and attack simulation]	Microsoft Defender for Office 365 Plan 2 [Plan 1 plus automated investigation, threat hunting, and attack simulation]
+																																														OneDrive Plan 2 [Cloud storage per user for personal file management. 1 TB for between 1-5 users. Up to 5 TB for 5+ users (further expandable on request)]	OneDrive Plan 2 [Cloud storage per user for personal file management. 1 TB for between 1-5 users. Up to 5 TB for 5+ users (further expandable on request)]		Microsoft Defender for Office 365 Plan 2 [Plan 1 plus automated investigation, threat hunting, and attack simulation]	OneDrive Plan 2 [Cloud storage per user for personal file management. 1 TB for between 1-5 users. Up to 5 TB for 5+ users (further expandable on request)]	OneDrive Plan 2 [Cloud storage per user for personal file management. 1 TB for between 1-5 users. Up to 5 TB for 5+ users (further expandable on request)]
+																																														Power BI Pro [Individual analytics license, share reports, interactive dashboards] [Individual analytics license, share reports, interactive dashboards]	Power BI Pro [Individual analytics license, share reports, interactive dashboards] [Individual analytics license, share reports, interactive dashboards]		Minecraft: Education Edition	Power BI Pro [Individual analytics license, share reports, interactive dashboards] [Individual analytics license, share reports, interactive dashboards]	Power BI Pro [Individual analytics license, share reports, interactive dashboards] [Individual analytics license, share reports, interactive dashboards]
+																																														Purview Data Loss Prevention [Identifies and protects sensitive information across apps, prevents accidental data leaks]	Purview Data Loss Prevention [Identifies and protects sensitive information across apps, prevents accidental data leaks]		OneDrive Plan 2 [Cloud storage per user for personal file management. 1 TB for between 1-5 users. Up to 5 TB for 5+ users (further expandable on request)]	Purview Data Loss Prevention [Identifies and protects sensitive information across apps, prevents accidental data leaks]	Purview Data Loss Prevention [Identifies and protects sensitive information across apps, prevents accidental data leaks]
+																																														SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]	SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]		Power BI Pro [Individual analytics license, share reports, interactive dashboards] [Individual analytics license, share reports, interactive dashboards]	SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]	SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]
+																																														SharePoint Online Plan 2 [Plan 1 plus unlimited storage, advanced search, eDiscovery, and Data Loss Prevention]	SharePoint Online Plan 2 [Plan 1 plus unlimited storage, advanced search, eDiscovery, and Data Loss Prevention] [Advanced intranet]		Purview Data Loss Prevention [Identifies and protects sensitive information across apps, prevents accidental data leaks]	SharePoint Online Plan 2 [Plan 1 plus unlimited storage, advanced search, eDiscovery, and Data Loss Prevention]	SharePoint Online Plan 2 [Plan 1 plus unlimited storage, advanced search, eDiscovery, and Data Loss Prevention]
+																																														Windows Enterprise [Upgrade operating system]	Teams [Chat, video meetings, calling, and file sharing] [Collaborative workspace for chat, video meetings, and file sharing]		SharePoint Online Plan 1 [Cloud collaboration, 1 TB storage, team and communication sites]	Windows Enterprise [Upgrade operating system]	Teams [Chat, video meetings, calling, and file sharing] [Collaborative workspace for chat, video meetings, and file sharing]
+																																														OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]	Teams Phone Standard [Cloud-based PBX, auto attendants, call queues, and voicemail; requires separate PSTN connectivity]		SharePoint Online Plan 2 [Plan 1 plus unlimited storage, advanced search, eDiscovery, and Data Loss Prevention] [Advanced intranet]	Microsoft 365 Apps (Remote Desktop Services rights) [Shared computer activation for running Office apps in RDS/VDI environments]	Teams Phone Standard [Cloud-based PBX, auto attendants, call queues, and voicemail; requires separate PSTN connectivity]
+																																															Windows Enterprise [Upgrade operating system]		Teams [Chat, video meetings, calling, and file sharing] [Collaborative workspace for chat, video meetings, and file sharing]	OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]	Windows Enterprise [Upgrade operating system]
+																																															OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]		Teams Phone Standard [Cloud-based PBX, auto attendants, call queues, and voicemail; requires separate PSTN connectivity]		Microsoft 365 Apps (Remote Desktop Services rights) [Shared computer activation for running Office apps in RDS/VDI environments]
+																																																	Windows Enterprise/Education [Upgrade operating system]		OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]
+																																																	OneDrive Plan 1 [Cloud storage per user for personal file management. 1 TB per user]		
+
+ 
+ 
+`;
+
+let plans = [], featData = new Map(), planToFeatMap = new Map(), allFeatures = [], selectionState = {}; 
+let featureTips = new Map();
+let planPrereqs = new Map();
+let planBlacklists = new Map();
+let currentResults = [];
+let currentResultIndex = 0;
+
+function init() {
+    if (!RAW_DATA.trim() || RAW_DATA.length < 50) return;
+    const lines = RAW_DATA.trim().split('\n');
+    plans = lines[0].split('\t').map(s => s.trim());
+    plans.forEach(p => {
+        planToFeatMap.set(p, []);
+        planBlacklists.set(p, []);
+    });
+
+    for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split('\t');
+        for (let j = 0; j < cols.length; j++) {
+            let rawCell = cols[j] ? cols[j].trim() : "";
+            if (!rawCell) continue;
+            
+            if (rawCell.toLowerCase().startsWith("prerequisite:")) {
+                const reqs = rawCell.split(':')[1].split(';').map(r => r.trim()).filter(r => r !== "");
+                planPrereqs.set(plans[j], reqs);
+                continue; 
+            }
+
+            if (rawCell.toLowerCase().startsWith("blacklist:")) {
+                const blockedSubstrings = rawCell.split(':')[1].split(';').map(s => s.trim()).filter(s => s !== "");
+                planBlacklists.set(plans[j], blockedSubstrings);
+                continue;
+            }
+
+            let fName = rawCell;
+            if (rawCell.includes('[')) {
+                const parts = rawCell.split('[');
+                fName = parts[0].trim();
+                let tip = parts[1].split(']')[0].trim();
+                if (!featureTips.has(fName)) featureTips.set(fName, tip);
+            }
+
+            const containsMeta = META_TAGS.some(tag => rawCell.toLowerCase().includes(tag.toLowerCase()));
+            
+            if (i <= 4 && containsMeta) { 
+                 const sectors = rawCell.split(/,|\/|\band\b/i).map(s => s.trim()).filter(s => s !== "");
+                 sectors.forEach(s => {
+                     let standardized = s;
+                     if (s.toLowerCase().includes("frontline")) standardized = "Frontline Worker";
+                     if (s.toLowerCase().includes("government")) standardized = "US Government";
+                     if (META_TAGS.includes(standardized)) {
+                        if (!featData.has(standardized)) { 
+                            featData.set(standardized, []); 
+                            if(!allFeatures.includes(standardized)) allFeatures.push(standardized); 
+                        }
+                        const list = featData.get(standardized);
+                        if (j < plans.length && !list.includes(plans[j])) list.push(plans[j]);
+                     }
+                 });
+            } else {
+                if (!featData.has(fName)) { featData.set(fName, []); allFeatures.push(fName); }
+                if (j < plans.length) {
+                    const currentPlan = plans[j];
+                    const currentList = featData.get(fName);
+                    if (!currentList.includes(currentPlan)) currentList.push(currentPlan);
+                    if (!META_TAGS.includes(fName)) {
+                        const planFeats = planToFeatMap.get(currentPlan);
+                        if (!planFeats.includes(fName)) planFeats.push(fName);
+                    }
+                }
+            }
+        }
+    }
+    renderFeatures();
+}
+
+function getCategory(f) {
+    const lower = f.toLowerCase();
+    if (FEATURE_MAP[f]) return FEATURE_MAP[f];
+    if (lower.includes("cal equivalent")) return "CAL Equivalents";
+    if (lower.includes("defender") || lower.includes("purview") || lower.includes("intune") || lower.includes("entra") || lower.includes("protection") || lower.includes("risk management") || lower.includes("ediscovery")) return "Security and compliance";
+    if (lower.includes("exchange") || lower.includes("sharepoint") || lower.includes("onedrive")) return "Email & Storage";
+    if (lower.includes("windows")) return "Windows";
+    return "Productivity";
+}
+
+function renderFeatures() {
+    const list = document.getElementById('feat-list');
+    list.innerHTML = '';
+    const displayFeatures = allFeatures.filter(f => !META_TAGS.includes(f));
+    const groups = {};
+    
+    displayFeatures.forEach(f => {
+        const cat = getCategory(f);
+        if(!groups[cat]) groups[cat] = [];
+        groups[cat].push(f);
+    });
+
+    CATEGORY_ORDER.forEach(cat => {
+        if(!groups[cat]) return;
+        const head = document.createElement('div');
+        head.className = 'category-header';
+        head.textContent = cat;
+        list.appendChild(head);
+        
+        const fs = groups[cat].sort((a, b) => {
+            if (cat === "Productivity") {
+                const getRank = (name) => {
+                    if (name.includes("local desktop applications")) return 1;
+                    if (name.includes("Remote Desktop rights")) return 2;
+                    return 10;
+                };
+                const rA = getRank(a), rB = getRank(b);
+                if (rA !== rB) return rA - rB;
+            }
+            return a.localeCompare(b);
+        });
+        
+        fs.forEach(f => {
+            const row = document.createElement('div');
+            row.className = 'toggle-row';
+            row.dataset.f = f;
+            row.onclick = (e) => { if(!e.target.classList.contains('hint-icon')) handleToggle(f, row); };
+            list.appendChild(row);
+        });
+    });
+}
+
+function showToast(msg) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = msg;
+    container.appendChild(toast);
+    setTimeout(() => toast.classList.add('show'), 10);
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 400);
+    }, 2000);
+}
+
+function handleToggle(f, element) {
+    const isSearching = document.getElementById('search-in').value.length > 0;
+    let label = "";
+
+    if (!selectionState[f]) {
+        selectionState[f] = { manual: true, causes: new Set() };
+        propagateAdd(f, INCLUDES_THESE[f] || []);
+        label = "Added";
+    } else if (selectionState[f].manual) {
+        selectionState[f].manual = false;
+        if (selectionState[f].causes.size === 0) delete selectionState[f];
+        propagateRemove(f, INCLUDES_THESE[f] || []);
+        label = "Removed";
+    } else { 
+        selectionState[f].manual = true; 
+        label = "Updated";
+    }
+
+    if (isSearching) {
+        clearSearch();
+        showToast(`${label}: ${f}`);
+    } else {
+        sync();
+    }
+    document.getElementById('search-in').focus();
+}
+
+function propagateAdd(parent, children) {
+    children.forEach(c => {
+        if (!selectionState[c]) selectionState[c] = { manual: false, causes: new Set() };
+        selectionState[c].causes.add(parent);
+        propagateAdd(parent, INCLUDES_THESE[c] || []);
+    });
+}
+function propagateRemove(parent, children) {
+    children.forEach(c => {
+        if (selectionState[c]) {
+            selectionState[c].causes.delete(parent);
+            if (selectionState[c].causes.size === 0 && !selectionState[c].manual) delete selectionState[c];
+            propagateRemove(parent, INCLUDES_THESE[c] || []);
+        }
+    });
+}
+
+function doesPlanSatisfy(planFeats, target) {
+    return planFeats.some(pf => {
+        if (pf === target) return true;
+        let queue = [pf];
+        let seen = new Set();
+        while (queue.length > 0) {
+            let current = queue.shift();
+            if (current === target) return true;
+            if (INCLUDES_THESE[current]) {
+                for (let child of INCLUDES_THESE[current]) {
+                    if (!seen.has(child)) { seen.add(child); queue.push(child); }
+                }
+            }
+        }
+        return false;
+    });
+}
+
+function getBestStandaloneForFeature(feature, availablePlans) {
+    const exact = availablePlans.find(p => p.toLowerCase() === feature.toLowerCase());
+    if (exact) return exact;
+    let best = null, minCount = 9999;
+    availablePlans.forEach(p => {
+        const feats = planToFeatMap.get(p);
+        if (doesPlanSatisfy(feats, feature)) {
+            if (feats.length < minCount) { minCount = feats.length; best = p; }
+        }
+    });
+    return best;
+}
+
+function sync() {
+    const sector = document.getElementById('sector-sel').value;
+    const userDropdown = document.getElementById('user-sel');
+    userDropdown.style.display = (sector === 'Commercial') ? 'inline-block' : 'none';
+    
+    const userLimit = (sector === 'Commercial') ? userDropdown.value : 'over';
+    const search = document.getElementById('search-in').value.toLowerCase();
+    const showOnly = document.getElementById('toggle-selected-only').checked;
+    
+    let pool = featData.get(sector) || [];
+    if (sector === 'Commercial' && userLimit === 'over') {
+        const unlimited = featData.get('No user limit of 300') || [];
+        pool = pool.filter(p => unlimited.includes(p));
+    }
+
+    document.querySelectorAll('.toggle-row').forEach(row => {
+        const f = row.dataset.f, state = selectionState[f];
+        const exists = (featData.get(f) || []).some(p => pool.includes(p));
+        const matches = f.toLowerCase().includes(search);
+        let visible = exists && matches;
+        if (showOnly && !state) visible = false;
+        row.style.display = visible ? 'flex' : 'none';
+        row.className = 'toggle-row' + (state ? (state.manual ? ' selected-manual' : ' selected-carried') : '');
+        if (visible) {
+            const tip = featureTips.get(f);
+            row.innerHTML = `<div class="switch"></div><div class="toggle-text"><span>${f}</span>${tip ? `<i class="hint-icon" onmouseenter="showTooltip(this, '${tip.replace(/'/g, "\\'")}')" onmouseleave="hideTooltip()">i</i>` : ''}</div>`;
+        }
+    });
+
+    const activeFeatures = Object.keys(selectionState);
+    if (activeFeatures.length === 0) { document.getElementById('results').innerHTML = '<div class="no-results">Select features to see plans.</div>'; return; }
+
+    let bundleMatches = pool.filter(pName => 
+        activeFeatures.every(req => doesPlanSatisfy(planToFeatMap.get(pName) || [], req))
+    ).sort((a, b) => (planToFeatMap.get(a).length - planToFeatMap.get(b).length));
+
+    let comboMatch = null;
+    const componentPlans = new Set();
+    const lockedPlans = new Set(); // Prevent removal of Prerequisite Bases
+    let possible = true;
+    const manualSelections = activeFeatures.filter(f => selectionState[f].manual);
+    
+    // CHECK IF TEAMS IS REQUIRED
+    const teamsRequired = activeFeatures.includes('Teams');
+
+    for (const f of manualSelections) {
+        const bestSingle = getBestStandaloneForFeature(f, pool);
+        if (bestSingle) {
+            componentPlans.add(bestSingle);
+            if (planPrereqs.has(bestSingle)) {
+                const requiredBases = planPrereqs.get(bestSingle);
+                // MODIFIED SORT LOGIC: If Teams is required, prefer plans that DO NOT have "(no teams)" in name
+                const bestBase = pool.filter(p => 
+                    requiredBases.some(rb => p.toLowerCase().includes(rb.toLowerCase()))
+                ).sort((a, b) => {
+                    if (teamsRequired) {
+                        const aNoTeams = a.toLowerCase().includes("(no teams)");
+                        const bNoTeams = b.toLowerCase().includes("(no teams)");
+                        if (aNoTeams && !bNoTeams) return 1;  // push 'no teams' plan to end
+                        if (!aNoTeams && bNoTeams) return -1; // push 'with teams' plan to front
+                    }
+                    // Default behavior: shortest length
+                    return planToFeatMap.get(a).length - planToFeatMap.get(b).length;
+                })[0];
+
+                if (bestBase) {
+                    componentPlans.add(bestBase);
+                    lockedPlans.add(bestBase); // Lock this plan
+                }
+            }
+        } else { possible = false; break; }
+    }
+
+    // UPDATED CLEANUP LOGIC: Remove redundant plans based on manual selections
+    const planArrForCleaning = Array.from(componentPlans);
+    const plansToRemove = new Set();
+
+    for (const planA of planArrForCleaning) {
+        if (lockedPlans.has(planA)) continue; // Never remove a prerequisite base
+
+        // Find which Manual Selections Plan A actually contributes to
+        const contribA = manualSelections.filter(req => doesPlanSatisfy(planToFeatMap.get(planA)||[], req));
+        
+        if (contribA.length === 0) {
+            // Plan contributes nothing to the requested features (edge case), remove it
+            plansToRemove.add(planA);
+            continue;
+        }
+
+        // Check if the combination of OTHER plans covers all of Plan A's contributions
+        const otherPlans = planArrForCleaning.filter(p => p !== planA && !plansToRemove.has(p));
+        
+        const allCovered = contribA.every(req => {
+            return otherPlans.some(pOther => doesPlanSatisfy(planToFeatMap.get(pOther)||[], req));
+        });
+
+        if (allCovered) {
+            plansToRemove.add(planA);
+        }
+    }
+
+    plansToRemove.forEach(p => componentPlans.delete(p));
+
+    // --- NEW LOGIC START ---
+    // Optimization: Check if any selected plan contains "Microsoft 365 Business Premium" (e.g., "(no Teams)" version)
+    // AND both Defender/Purview add-ons are triggered. If so, swap for the suite.
+    const hasBizPrem = Array.from(componentPlans).some(p => p.toLowerCase().includes("microsoft 365 business premium"));
+
+    if (hasBizPrem && 
+        componentPlans.has("Defender Suite Add-on") && 
+        componentPlans.has("Purview Suite Add-on")) {
+        
+        // Remove the individual components
+        componentPlans.delete("Defender Suite Add-on");
+        componentPlans.delete("Purview Suite Add-on");
+        
+        // Add the combined suite
+        componentPlans.add("Defender and Purview Suite Add-on for Business Premium");
+
+        // Bonus: The Combined Suite includes Entra ID P2. 
+        // If the calculator added Entra ID P2 separately, we can remove it now to avoid redundancy.
+        if (componentPlans.has("Entra ID Plan 2")) {
+            componentPlans.delete("Entra ID Plan 2");
+        }
+    }
+    // --- NEW LOGIC END ---
+
+    const EXEMPT_FROM_COMBO = ["Defender Suite Add-on", "Purview Suite Add-on", "Defender and Purview Suite Add-on for Business Premium"];
+    const finalPlans = Array.from(componentPlans);
+    const nonExemptCount = finalPlans.filter(p => !EXEMPT_FROM_COMBO.includes(p)).length;
+
+    if (possible && finalPlans.length > 1 && nonExemptCount <= 2) {
+        let conflict = false;
+        for (let i = 0; i < finalPlans.length; i++) {
+            const p1 = finalPlans[i];
+            const bl1 = planBlacklists.get(p1) || [];
+            for (let j = 0; j < finalPlans.length; j++) {
+                if (i === j) continue;
+                const p2 = finalPlans[j];
+                if (bl1.some(b => p2.toLowerCase().includes(b.toLowerCase()))) {
+                    conflict = true; 
+                    break;
+                }
+            }
+            if (conflict) break;
+        }
+
+        if (!conflict) {
+            finalPlans.sort((a, b) => {
+                const aHas365 = a.indexOf("365") !== -1;
+                const bHas365 = b.indexOf("365") !== -1;
+                if (aHas365 && !bHas365) return -1;
+                if (!aHas365 && bHas365) return 1;
+                return a.localeCompare(b);
+            });
+            comboMatch = { name: finalPlans.join(' + '), isCombo: true, components: finalPlans };
+        }
+    }
+
+    currentResults = [];
+    if (comboMatch) currentResults.push(comboMatch);
+    bundleMatches.forEach(p => { if (!currentResults.some(r => (r.isCombo ? r.name : r) === p)) currentResults.push(p); });
+
+    currentResultIndex = 0;
+    renderBestPlan();
+}
+
+function cyclePlan(direction) {
+    if (direction === 'next' && currentResultIndex < currentResults.length - 1) currentResultIndex++;
+    else if (direction === 'prev' && currentResultIndex > 0) currentResultIndex--;
+    renderBestPlan();
+}
+
+function renderBestPlan() {
+    const container = document.getElementById('results');
+    if (currentResults.length === 0) { container.innerHTML = '<div class="no-results" style="color:#d9534f">No single plan or valid combo found.</div>'; return; }
+    
+    const resultObj = currentResults[currentResultIndex];
+    const isCombo = typeof resultObj === 'object' && resultObj.isCombo;
+    const planName = isCombo ? resultObj.name : resultObj;
+    let featList = isCombo ? Array.from(new Set(resultObj.components.flatMap(cp => planToFeatMap.get(cp) || []))) : [...new Set(planToFeatMap.get(planName) || [])];
+
+    const grouped = {};
+    featList.forEach(f => {
+        const cat = getCategory(f);
+        if(!grouped[cat]) grouped[cat] = [];
+        grouped[cat].push(f);
+    });
+
+    let featuresHtml = `<div class="plan-details-header">Included in this configuration:</div><div class="feat-display-grid">`;
+    CATEGORY_ORDER.forEach(cat => {
+        if(grouped[cat]) {
+            featuresHtml += `<div class="feat-col"><div class="feat-display-cat">${cat}</div>`;
+            grouped[cat].sort((a,b) => {
+                if(cat === "Productivity" && a.includes("local desktop applications")) return -1;
+                return a.localeCompare(b);
+            }).forEach(f => { featuresHtml += `<span class="feat-display-item">• ${f}</span>`; });
+            featuresHtml += `</div>`;
+        }
+    });
+    featuresHtml += `</div>`;
+
+    container.innerHTML = `
+        <div class="best-match-card">
+            <div class="plan-tag">${currentResultIndex === 0 ? 'Best option' : 'Alternative'}</div>
+            <div class="plan-name">${planName}</div>
+            <div class="nav-controls">
+                <button class="nav-btn prev" onclick="cyclePlan('prev')" ${currentResultIndex === 0 ? 'disabled' : ''}><svg width="14" height="14" style="transform:rotate(180deg)"><use href="#arrow-icon"/></svg> Previous</button>
+                <span class="nav-info">Option ${currentResultIndex + 1} of ${currentResults.length}</span>
+                <button class="nav-btn next" onclick="cyclePlan('next')" ${currentResultIndex === currentResults.length - 1 ? 'disabled' : ''}>Next option <svg width="14" height="14"><use href="#arrow-icon"/></svg></button>
+            </div>
+        </div>
+        ${featuresHtml}
+    `;
+}
+
+function handleSearchInput() {
+    const input = document.getElementById('search-in');
+    document.getElementById('search-clear').style.display = input.value.length > 0 ? 'flex' : 'none';
+    sync();
+}
+
+function clearSearch() { document.getElementById('search-in').value = ''; handleSearchInput(); }
+
+function showTooltip(el, text) {
+    const box = document.getElementById('smart-tooltip');
+    box.innerHTML = text; box.classList.add('visible');
+    const rect = el.getBoundingClientRect();
+    box.style.left = (rect.left - 10) + 'px';
+    box.style.top = (rect.bottom + 8) + 'px';
+}
+function hideTooltip() { document.getElementById('smart-tooltip').classList.remove('visible'); }
+
+function setStep1(v) { 
+    document.getElementById('sector-sel').value = v; 
+    if (v === 'Commercial') { 
+        document.getElementById('step-1').classList.remove('active'); 
+        document.getElementById('step-2').classList.add('active'); 
+    } else { finishWizard('over'); }
+}
+function goBackToStep1() { document.getElementById('step-2').classList.remove('active'); document.getElementById('step-1').classList.add('active'); }
+
+function finishWizard(v) { 
+    document.getElementById('user-sel').value = v; 
+    document.getElementById('wizard').style.display = 'none'; 
+    document.getElementById('app').style.display = 'flex'; 
+    sync(); 
+    setTimeout(() => document.getElementById('search-in').focus(), 100);
+}
+
+function resetFeats() { 
+    selectionState = {}; 
+    document.getElementById('toggle-selected-only').checked = false;
+    sync(); 
+    clearSearch(); 
+    document.getElementById('search-in').focus();
+}
+
+function resetAllOnSectorChange() { selectionState = {}; sync(); }
+
+init();
+</script>
+</body>
+</html>

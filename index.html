@@ -1,11 +1,64 @@
 <!DOCTYPE html>
 <html>
+<head>
+    <title>My Toolbox</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6; }
+        h1 { border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        ul { list-style: none; padding: 0; }
+        li { margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; padding: 10px; background: #fafafa; display: flex; justify-content: space-between; align-items: center; }
+        a { text-decoration: none; color: #0066cc; font-weight: bold; font-size: 1.1rem; }
+        a:hover { text-decoration: underline; }
+        .btn-edit { font-size: 0.8rem; background: #eee; color: #333; padding: 5px 10px; border-radius: 4px; border: 1px solid #ccc; }
+    </style>
+</head>
 <body>
-  <h1>My Website Playground</h1>
-  <ul>
-    <!-- Change 'my-page.html' to the actual name of your other file -->
-    <li><a href="my-page.html">Link to my first page</a></li>
-    <li><a href="image.jpg">Link to an image</a></li>
-  </ul>
+
+    <h1>🧰 My Toolbox Files</h1>
+    <p id="loading">Scanning for files...</p>
+    <ul id="file-list"></ul>
+
+    <script>
+        // CONFIGURATION
+        const USER = 'Licensing-School';
+        const REPO = 'Toolbox';
+        
+        // This script asks GitHub for your file list
+        fetch(`https://api.github.com/repos/${USER}/${REPO}/contents/`)
+            .then(response => response.json())
+            .then(data => {
+                const list = document.getElementById('file-list');
+                document.getElementById('loading').style.display = 'none';
+
+                data.forEach(file => {
+                    // Only show HTML files, and hide the index.html itself
+                    if (file.name.endsWith('.html') && file.name !== 'index.html') {
+                        
+                        const li = document.createElement('li');
+                        
+                        // Link to the LIVE website version
+                        const viewLink = document.createElement('a');
+                        viewLink.href = file.name;
+                        viewLink.innerText = file.name;
+                        
+                        // Link to the EDIT page on GitHub
+                        const editLink = document.createElement('a');
+                        editLink.href = file.html_url; // This goes to the GitHub code view
+                        editLink.innerText = "View Code / Edit";
+                        editLink.className = "btn-edit";
+                        editLink.target = "_blank";
+
+                        li.appendChild(viewLink);
+                        li.appendChild(editLink);
+                        list.appendChild(li);
+                    }
+                });
+            })
+            .catch(err => {
+                document.getElementById('loading').innerText = "Could not load files. (Rate limit or error)";
+                console.error(err);
+            });
+    </script>
+
 </body>
 </html>
